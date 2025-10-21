@@ -1,11 +1,18 @@
 package com.example.zapmessage
 
+import android.content.Intent
+import android.net.Uri
 import android.os.Bundle
+import android.view.View
+import android.widget.Button
+import android.widget.EditText
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AccountBox
 import androidx.compose.material.icons.filled.Favorite
@@ -43,6 +50,7 @@ fun ZapmessageApp() {
     var currentDestination by rememberSaveable { mutableStateOf(AppDestinations.HOME) }
 
     NavigationSuiteScaffold(
+        modifier = Modifier.safeDrawingPadding(),
         navigationSuiteItems = {
             AppDestinations.entries.forEach {
                 item(
@@ -59,26 +67,45 @@ fun ZapmessageApp() {
             }
         }
     ) {
-        when (currentDestination) {
-            AppDestinations.HOME -> {
-                AndroidView(
-                    modifier = Modifier.fillMaxSize(),
-                    factory = { context ->
-                        android.view.LayoutInflater.from(context)
-                            .inflate(R.layout.mainlayout, null)
-                    }
-                )
-            }
-
-            AppDestinations.FAVORITES -> {
-                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    Text("Favorites Screen")
+        Box(modifier = Modifier.fillMaxSize()) {
+            when (currentDestination) {
+                AppDestinations.HOME -> {
+                    AndroidView(
+                        modifier = Modifier.fillMaxSize(),
+                        factory = { context ->
+                            val view = View.inflate(context, R.layout.mainlayout, null)
+                            val editText = view.findViewById<EditText>(R.id.inputText)
+                            val button = view.findViewById<Button>(R.id.btn_search)
+                            button.setOnClickListener {
+                                val phoneNumber = editText.text.toString()
+                                if (phoneNumber.isNotBlank()) {
+                                    val intent = Intent(Intent.ACTION_VIEW).apply {
+                                        data = Uri.parse("https://wa.me/55$phoneNumber")
+                                    }
+                                    context.startActivity(intent)
+                                }
+                            }
+                            view
+                        }
+                    )
                 }
-            }
 
-            AppDestinations.PROFILE -> {
-                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    Text("Profile Screen")
+                AppDestinations.FAVORITES -> {
+                    Box(
+                        modifier = Modifier.fillMaxSize(),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text("Favorites Screen")
+                    }
+                }
+
+                AppDestinations.PROFILE -> {
+                    Box(
+                        modifier = Modifier.fillMaxSize(),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text("Profile Screen")
+                    }
                 }
             }
         }
