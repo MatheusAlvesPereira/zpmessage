@@ -1,7 +1,6 @@
 package com.example.zapmessage
 
 import android.content.Intent
-import android.net.Uri
 import android.os.Bundle
 import android.view.View
 import android.widget.Button
@@ -11,7 +10,6 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AccountBox
@@ -31,6 +29,9 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.tooling.preview.PreviewScreenSizes
 import androidx.compose.ui.viewinterop.AndroidView
 import com.example.zapmessage.ui.theme.ZapmessageTheme
+import androidx.core.net.toUri
+import com.google.firebase.database.DatabaseReference
+import com.google.firebase.database.FirebaseDatabase
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -38,7 +39,7 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         setContent {
             ZapmessageTheme {
-                ZapmessageApp()
+                MessageApp()
             }
         }
     }
@@ -46,8 +47,10 @@ class MainActivity : ComponentActivity() {
 
 @PreviewScreenSizes
 @Composable
-fun ZapmessageApp() {
+fun MessageApp() {
     var currentDestination by rememberSaveable { mutableStateOf(AppDestinations.HOME) }
+
+    lateinit var databaseReference: DatabaseReference
 
     NavigationSuiteScaffold(
         modifier = Modifier.safeDrawingPadding(),
@@ -73,19 +76,25 @@ fun ZapmessageApp() {
                     AndroidView(
                         modifier = Modifier.fillMaxSize(),
                         factory = { context ->
-                            val view = View.inflate(context, R.layout.mainlayout, null)
-                            val editText = view.findViewById<EditText>(R.id.inputText)
-                            val button = view.findViewById<Button>(R.id.btn_search)
+                            val viewMainLayout = View.inflate(context, R.layout.mainlayout, null)
+                            val editText = viewMainLayout.findViewById<EditText>(R.id.inputText)
+                            val button = viewMainLayout.findViewById<Button>(R.id.btn_search)
                             button.setOnClickListener {
                                 val phoneNumber = editText.text.toString()
                                 if (phoneNumber.isNotBlank()) {
+                                    databaseReference = FirebaseDatabase.getInstance().getReference("PhoneNumbers")
+                                    val phoneData = PhoneData(phoneNumber)
+                                    databaseReference.child(phoneNumber).setValue(phoneData).addOnSuccessListener {
+                                        editText.text.clear()
+                                    }
+
                                     val intent = Intent(Intent.ACTION_VIEW).apply {
-                                        data = Uri.parse("https://wa.me/55$phoneNumber")
+                                        data = "https://wa.me/55$phoneNumber".toUri()
                                     }
                                     context.startActivity(intent)
                                 }
                             }
-                            view
+                            viewMainLayout
                         }
                     )
                 }
