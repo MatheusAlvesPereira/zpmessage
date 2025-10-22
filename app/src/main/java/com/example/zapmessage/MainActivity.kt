@@ -91,11 +91,19 @@ fun ZapmessageApp() {
                 }
 
                 AppDestinations.FAVORITES -> {
+                    AndroidView(
+                        modifier = Modifier.fillMaxSize(),
+                        factory = { context ->
+                            val viewRecent = View.inflate(context, R.layout.recentlayout, null)
+                            viewRecent
+                        }
+                    )
+
                     Box(
                         modifier = Modifier.fillMaxSize(),
                         contentAlignment = Alignment.Center
                     ) {
-                        Text("Favorites Screen")
+                        Text("Recent")
                     }
                 }
 
