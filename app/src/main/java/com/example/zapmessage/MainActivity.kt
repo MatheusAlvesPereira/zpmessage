@@ -105,15 +105,9 @@ fun MessageApp() {
                         factory = { context ->
                             val viewRecent = View.inflate(context, R.layout.recentlayout, null)
                             viewRecent
+
                         }
                     )
-
-                    Box(
-                        modifier = Modifier.fillMaxSize(),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text("Recent")
-                    }
                 }
 
                 AppDestinations.PROFILE -> {
