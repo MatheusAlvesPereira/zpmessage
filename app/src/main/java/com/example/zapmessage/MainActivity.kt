@@ -18,20 +18,18 @@ import androidx.compose.material.icons.filled.Home
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.material3.adaptive.navigationsuite.NavigationSuiteScaffold
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.tooling.preview.PreviewScreenSizes
 import androidx.compose.ui.viewinterop.AndroidView
-import com.example.zapmessage.ui.theme.ZapmessageTheme
 import androidx.core.net.toUri
-import com.google.firebase.database.DatabaseReference
-import com.google.firebase.database.FirebaseDatabase
+import androidx.recyclerview.widget.LinearLayoutManager
+import androidx.recyclerview.widget.RecyclerView
+import com.example.zapmessage.ui.theme.ZapmessageTheme
+import com.google.firebase.database.*
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -50,7 +48,7 @@ class MainActivity : ComponentActivity() {
 fun MessageApp() {
     var currentDestination by rememberSaveable { mutableStateOf(AppDestinations.HOME) }
 
-    lateinit var databaseReference: DatabaseReference
+    val databaseReference = remember { FirebaseDatabase.getInstance().getReference("PhoneNumbers") }
 
     NavigationSuiteScaffold(
         modifier = Modifier.safeDrawingPadding(),
@@ -82,7 +80,6 @@ fun MessageApp() {
                             button.setOnClickListener {
                                 val phoneNumber = editText.text.toString()
                                 if (phoneNumber.isNotBlank()) {
-                                    databaseReference = FirebaseDatabase.getInstance().getReference("PhoneNumbers")
                                     val phoneData = PhoneData(phoneNumber)
                                     databaseReference.child(phoneNumber).setValue(phoneData).addOnSuccessListener {
                                         editText.text.clear()
@@ -100,12 +97,38 @@ fun MessageApp() {
                 }
 
                 AppDestinations.FAVORITES -> {
+                    var phoneList by remember { mutableStateOf<List<PhoneData>>(emptyList()) }
+
+                    DisposableEffect(databaseReference) {
+                        val valueEventListener = object : ValueEventListener {
+                            override fun onDataChange(snapshot: DataSnapshot) {
+                                val newList = snapshot.children.mapNotNull { it.getValue(PhoneData::class.java) }
+                                phoneList = newList
+                            }
+
+                            override fun onCancelled(error: DatabaseError) {
+                                // Handle error
+                            }
+                        }
+
+                        databaseReference.addValueEventListener(valueEventListener)
+
+                        onDispose {
+                            databaseReference.removeEventListener(valueEventListener)
+                        }
+                    }
+
                     AndroidView(
                         modifier = Modifier.fillMaxSize(),
                         factory = { context ->
                             val viewRecent = View.inflate(context, R.layout.recentlayout, null)
+                            val recyclerView = viewRecent.findViewById<RecyclerView>(R.id.recyclerViewRecents)
+                            recyclerView.layoutManager = LinearLayoutManager(context)
                             viewRecent
-
+                        },
+                        update = { viewRecent ->
+                            val recyclerView = viewRecent.findViewById<RecyclerView>(R.id.recyclerViewRecents)
+                            recyclerView.adapter = RecentsAdapter(phoneList)
                         }
                     )
                 }

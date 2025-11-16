@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "557671475017",
+    "project_id": "zapmessage-36c06",
+    "storage_bucket": "zapmessage-36c06.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:557671475017:android:e4af596ce8a9084c9fdc98",
+        "android_client_info": {
+          "package_name": "com.example.zapmessage"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAtU_-aC18vJhxZB7N76_5n5iILuGpKoNI"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
