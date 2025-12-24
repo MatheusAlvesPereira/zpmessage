@@ -57,8 +57,8 @@ class MainActivityTest {
         // 4. Navega para a tela de Perfil (que é um Composable).
         composeTestRule.onNodeWithText(AppDestinations.PROFILE.label).performClick()
 
-        // 5. Verifica se a tela de Perfil foi carregada (que é um Composable).
-        composeTestRule.onNodeWithText("Profile Screen").assertExists()
+        // 5. Verifica se a tela de Perfil foi carregada.
+        onView(withText("Profile Screen")).check(matches(isDisplayed()))
     }
 
     @Test

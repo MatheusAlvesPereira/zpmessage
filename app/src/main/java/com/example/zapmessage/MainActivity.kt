@@ -134,13 +134,13 @@ fun MessageApp() {
                 }
 
                 AppDestinations.PROFILE -> {
-
-                    Box(
+                    AndroidView(
                         modifier = Modifier.fillMaxSize(),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text("Profile Screen")
-                    }
+                        factory = { context ->
+                            val viewProfile = View.inflate(context, R.layout.profilelayout, null)
+                            viewProfile
+                        }
+                    )
                 }
             }
         }
