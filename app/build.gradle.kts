@@ -56,9 +56,12 @@ dependencies {
     implementation(libs.androidx.compose.material3.adaptive.navigation.suite)
     implementation(libs.androidx.constraintlayout)
     implementation(libs.firebase.database)
+
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
+    //androidTestImplementation(libs.androidx.test.runner) // This is often included transitively
     androidTestImplementation(libs.androidx.espresso.core)
+    androidTestImplementation(libs.androidx.espresso.intents)
     androidTestImplementation(platform(libs.androidx.compose.bom))
     androidTestImplementation(libs.androidx.compose.ui.test.junit4)
     debugImplementation(libs.androidx.compose.ui.tooling)
