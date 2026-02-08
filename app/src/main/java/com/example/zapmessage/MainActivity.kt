@@ -1,5 +1,6 @@
 package com.example.zapmessage
 
+import android.content.Context
 import android.content.Intent
 import android.os.Bundle
 import android.view.View
@@ -20,16 +21,15 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.adaptive.navigationsuite.NavigationSuiteScaffold
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.tooling.preview.PreviewScreenSizes
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.net.toUri
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.example.zapmessage.ui.theme.ZapmessageTheme
-import com.google.firebase.database.*
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -46,9 +46,39 @@ class MainActivity : ComponentActivity() {
 @PreviewScreenSizes
 @Composable
 fun MessageApp() {
+    val context = LocalContext.current
+    val sharedPreferences = remember { context.getSharedPreferences("zap_message_prefs", Context.MODE_PRIVATE) }
+    
     var currentDestination by rememberSaveable { mutableStateOf(AppDestinations.HOME) }
+    
+    // Estado da lista de telefones (carregado do cache local)
+    var phoneList by remember {
+        val savedString = sharedPreferences.getString("phone_list", "") ?: ""
+        val initialList = if (savedString.isEmpty()) {
+            emptyList<PhoneData>()
+        } else {
+            savedString.split(",").map { PhoneData(it) }
+        }
+        mutableStateOf(initialList)
+    }
 
-    val databaseReference = remember { FirebaseDatabase.getInstance().getReference("PhoneNumbers") }
+    // Função para atualizar a lista local e o cache
+    val saveToCache = { number: String ->
+        val currentString = sharedPreferences.getString("phone_list", "") ?: ""
+        val currentList = if (currentString.isEmpty()) mutableListOf() else currentString.split(",").toMutableList()
+        
+        // Remove se já existir para reinserir no topo (garante unicidade e ordem de recentes)
+        currentList.remove(number)
+        currentList.add(0, number)
+        
+        // Limita aos 50 mais recentes
+        val limitedList = currentList.take(50)
+        
+        sharedPreferences.edit().putString("phone_list", limitedList.joinToString(",")).apply()
+        
+        // Atualiza o estado da UI
+        phoneList = limitedList.map { PhoneData(it) }
+    }
 
     NavigationSuiteScaffold(
         modifier = Modifier.safeDrawingPadding(),
@@ -73,22 +103,21 @@ fun MessageApp() {
                 AppDestinations.HOME -> {
                     AndroidView(
                         modifier = Modifier.fillMaxSize(),
-                        factory = { context ->
-                            val viewMainLayout = View.inflate(context, R.layout.mainlayout, null)
+                        factory = { ctx ->
+                            val viewMainLayout = View.inflate(ctx, R.layout.mainlayout, null)
                             val editText = viewMainLayout.findViewById<EditText>(R.id.inputText)
                             val button = viewMainLayout.findViewById<Button>(R.id.btn_search)
                             button.setOnClickListener {
                                 val phoneNumber = editText.text.toString()
                                 if (phoneNumber.isNotBlank()) {
-                                    val phoneData = PhoneData(phoneNumber)
-                                    databaseReference.child(phoneNumber).setValue(phoneData).addOnSuccessListener {
-                                        editText.text.clear()
-                                    }
+                                    // Salva localmente
+                                    saveToCache(phoneNumber)
 
                                     val intent = Intent(Intent.ACTION_VIEW).apply {
                                         data = "https://wa.me/55$phoneNumber".toUri()
                                     }
-                                    context.startActivity(intent)
+                                    ctx.startActivity(intent)
+                                    editText.text.clear()
                                 }
                             }
                             viewMainLayout
@@ -96,37 +125,18 @@ fun MessageApp() {
                     )
                 }
 
-                AppDestinations.FAVORITES -> {
-                    var phoneList by remember { mutableStateOf<List<PhoneData>>(emptyList()) }
-
-                    DisposableEffect(databaseReference) {
-                        val valueEventListener = object : ValueEventListener {
-                            override fun onDataChange(snapshot: DataSnapshot) {
-                                val newList = snapshot.children.mapNotNull { it.getValue(PhoneData::class.java) }
-                                phoneList = newList
-                            }
-
-                            override fun onCancelled(error: DatabaseError) {
-                                // Handle error
-                            }
-                        }
-
-                        databaseReference.addValueEventListener(valueEventListener)
-
-                        onDispose {
-                            databaseReference.removeEventListener(valueEventListener)
-                        }
-                    }
-
+                AppDestinations.RECENTS -> {
                     AndroidView(
                         modifier = Modifier.fillMaxSize(),
-                        factory = { context ->
-                            val viewRecent = View.inflate(context, R.layout.recentlayout, null)
+                        factory = { ctx ->
+                            val viewRecent = View.inflate(ctx, R.layout.recentlayout, null)
                             val recyclerView = viewRecent.findViewById<RecyclerView>(R.id.recyclerViewRecents)
-                            recyclerView.layoutManager = LinearLayoutManager(context)
+                            recyclerView.layoutManager = LinearLayoutManager(ctx)
+                            recyclerView.adapter = RecentsAdapter(phoneList)
                             viewRecent
                         },
                         update = { viewRecent ->
+                            // Atualiza o RecyclerView sempre que a phoneList mudar
                             val recyclerView = viewRecent.findViewById<RecyclerView>(R.id.recyclerViewRecents)
                             recyclerView.adapter = RecentsAdapter(phoneList)
                         }
@@ -136,8 +146,8 @@ fun MessageApp() {
                 AppDestinations.PROFILE -> {
                     AndroidView(
                         modifier = Modifier.fillMaxSize(),
-                        factory = { context ->
-                            val viewProfile = View.inflate(context, R.layout.profilelayout, null)
+                        factory = { ctx ->
+                            val viewProfile = View.inflate(ctx, R.layout.profilelayout, null)
                             viewProfile
                         }
                     )
@@ -152,6 +162,6 @@ enum class AppDestinations(
     val icon: ImageVector,
 ) {
     HOME("Home", Icons.Default.Home),
-    FAVORITES("Favorites", Icons.Default.Favorite),
+    RECENTS("Recents", Icons.Default.Favorite),
     PROFILE("Profile", Icons.Default.AccountBox),
 }
