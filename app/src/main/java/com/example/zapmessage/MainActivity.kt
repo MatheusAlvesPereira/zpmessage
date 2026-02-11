@@ -3,6 +3,8 @@ package com.example.zapmessage
 import android.content.Context
 import android.content.Intent
 import android.os.Bundle
+import android.text.Editable
+import android.text.TextWatcher
 import android.view.View
 import android.widget.Button
 import android.widget.EditText
@@ -50,16 +52,24 @@ fun MessageApp() {
     val sharedPreferences = remember { context.getSharedPreferences("zap_message_prefs", Context.MODE_PRIVATE) }
     
     var currentDestination by rememberSaveable { mutableStateOf(AppDestinations.HOME) }
+    var searchQuery by remember { mutableStateOf("") }
     
     // Estado da lista de telefones (carregado do cache local)
     var phoneList by remember {
         val savedString = sharedPreferences.getString("phone_list", "") ?: ""
         val initialList = if (savedString.isEmpty()) {
-            emptyList<PhoneData>()
+            emptyList()
         } else {
             savedString.split(",").map { PhoneData(it) }
         }
         mutableStateOf(initialList)
+    }
+
+    // Filtragem da lista para busca
+    val filteredList = if (searchQuery.isEmpty()) {
+        phoneList
+    } else {
+        phoneList.filter { it.phoneNumber?.contains(searchQuery) == true }
     }
 
     // Função para atualizar a lista local e o cache
@@ -67,17 +77,31 @@ fun MessageApp() {
         val currentString = sharedPreferences.getString("phone_list", "") ?: ""
         val currentList = if (currentString.isEmpty()) mutableListOf() else currentString.split(",").toMutableList()
         
-        // Remove se já existir para reinserir no topo (garante unicidade e ordem de recentes)
         currentList.remove(number)
         currentList.add(0, number)
         
-        // Limita aos 50 mais recentes
         val limitedList = currentList.take(50)
-        
         sharedPreferences.edit().putString("phone_list", limitedList.joinToString(",")).apply()
-        
-        // Atualiza o estado da UI
         phoneList = limitedList.map { PhoneData(it) }
+    }
+
+    // Função para deletar um número
+    val deleteFromCache = { number: String ->
+        val currentString = sharedPreferences.getString("phone_list", "") ?: ""
+        val currentList = if (currentString.isEmpty()) mutableListOf() else currentString.split(",").toMutableList()
+        
+        currentList.remove(number)
+        
+        sharedPreferences.edit().putString("phone_list", currentList.joinToString(",")).apply()
+        phoneList = currentList.map { PhoneData(it) }
+    }
+
+    // Função para abrir o WhatsApp
+    val openWhatsApp = { number: String ->
+        val intent = Intent(Intent.ACTION_VIEW).apply {
+            data = "https://wa.me/55$number".toUri()
+        }
+        context.startActivity(intent)
     }
 
     NavigationSuiteScaffold(
@@ -110,13 +134,8 @@ fun MessageApp() {
                             button.setOnClickListener {
                                 val phoneNumber = editText.text.toString()
                                 if (phoneNumber.isNotBlank()) {
-                                    // Salva localmente
                                     saveToCache(phoneNumber)
-
-                                    val intent = Intent(Intent.ACTION_VIEW).apply {
-                                        data = "https://wa.me/55$phoneNumber".toUri()
-                                    }
-                                    ctx.startActivity(intent)
+                                    openWhatsApp(phoneNumber)
                                     editText.text.clear()
                                 }
                             }
@@ -131,14 +150,32 @@ fun MessageApp() {
                         factory = { ctx ->
                             val viewRecent = View.inflate(ctx, R.layout.recentlayout, null)
                             val recyclerView = viewRecent.findViewById<RecyclerView>(R.id.recyclerViewRecents)
+                            val editSearch = viewRecent.findViewById<EditText>(R.id.editSearch)
+                            
                             recyclerView.layoutManager = LinearLayoutManager(ctx)
-                            recyclerView.adapter = RecentsAdapter(phoneList)
+                            recyclerView.adapter = RecentsAdapter(
+                                filteredList,
+                                onMessageClick = { openWhatsApp(it) },
+                                onDeleteClick = { deleteFromCache(it) }
+                            )
+
+                            editSearch.addTextChangedListener(object : TextWatcher {
+                                override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
+                                override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {
+                                    searchQuery = s.toString()
+                                }
+                                override fun afterTextChanged(s: Editable?) {}
+                            })
+                            
                             viewRecent
                         },
                         update = { viewRecent ->
-                            // Atualiza o RecyclerView sempre que a phoneList mudar
                             val recyclerView = viewRecent.findViewById<RecyclerView>(R.id.recyclerViewRecents)
-                            recyclerView.adapter = RecentsAdapter(phoneList)
+                            recyclerView.adapter = RecentsAdapter(
+                                filteredList,
+                                onMessageClick = { openWhatsApp(it) },
+                                onDeleteClick = { deleteFromCache(it) }
+                            )
                         }
                     )
                 }
