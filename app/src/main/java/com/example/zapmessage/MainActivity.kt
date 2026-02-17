@@ -32,6 +32,7 @@ import androidx.core.net.toUri
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.example.zapmessage.ui.theme.ZapmessageTheme
+import androidx.core.content.edit
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -54,7 +55,7 @@ fun MessageApp() {
     var currentDestination by rememberSaveable { mutableStateOf(AppDestinations.HOME) }
     var searchQuery by remember { mutableStateOf("") }
     
-    // Estado da lista de telefones (carregado do cache local)
+    // state of list of the phones (loading local cache)
     var phoneList by remember {
         val savedString = sharedPreferences.getString("phone_list", "") ?: ""
         val initialList = if (savedString.isEmpty()) {
@@ -65,14 +66,14 @@ fun MessageApp() {
         mutableStateOf(initialList)
     }
 
-    // Filtragem da lista para busca
+    // Filter of lists of phones
     val filteredList = if (searchQuery.isEmpty()) {
         phoneList
     } else {
-        phoneList.filter { it.phoneNumber?.contains(searchQuery) == true }
+        phoneList.filter { it.phoneNumber?.contains(searchQuery, ignoreCase = true) == true }
     }
 
-    // Função para atualizar a lista local e o cache
+    // Function for update the local cache and phone numbers
     val saveToCache = { number: String ->
         val currentString = sharedPreferences.getString("phone_list", "") ?: ""
         val currentList = if (currentString.isEmpty()) mutableListOf() else currentString.split(",").toMutableList()
@@ -81,22 +82,22 @@ fun MessageApp() {
         currentList.add(0, number)
         
         val limitedList = currentList.take(50)
-        sharedPreferences.edit().putString("phone_list", limitedList.joinToString(",")).apply()
+        sharedPreferences.edit { putString("phone_list", limitedList.joinToString(",")) }
         phoneList = limitedList.map { PhoneData(it) }
     }
 
-    // Função para deletar um número
+    // Function for delete a phone number
     val deleteFromCache = { number: String ->
         val currentString = sharedPreferences.getString("phone_list", "") ?: ""
         val currentList = if (currentString.isEmpty()) mutableListOf() else currentString.split(",").toMutableList()
         
         currentList.remove(number)
         
-        sharedPreferences.edit().putString("phone_list", currentList.joinToString(",")).apply()
+        sharedPreferences.edit { putString("phone_list", currentList.joinToString(",")) }
         phoneList = currentList.map { PhoneData(it) }
     }
 
-    // Função para abrir o WhatsApp
+    // Function for open WhatsApp from api
     val openWhatsApp = { number: String ->
         val intent = Intent(Intent.ACTION_VIEW).apply {
             data = "https://wa.me/55$number".toUri()
